@@ -1,0 +1,25 @@
+# Virtual environment
+.venv/
+
+# Dataset (lokal saja, dilarang di-upload)
+Dataset/*
+!Dataset/.gitkeep
+
+# Model terlatih (dilarang di-upload)
+*.pt
+*.pth
+*.h5
+*.ckpt
+*.onnx
+
+# Cache Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Editor dan sistem
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store
