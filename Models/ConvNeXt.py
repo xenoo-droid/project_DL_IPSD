@@ -5,6 +5,9 @@ from torchvision.models import convnext_tiny, ConvNeXt_Tiny_Weights
 
 
 class ConvNeXtTiny(nn.Module):
+    # dibaca train.py/test.py buat getData; pretrained, jadi pakai normalisasi ImageNet
+    PREPROCESS = {"size": 224, "bgr": False, "normalize": True}
+
     def __init__(self, num_classes=6):
         super().__init__()
         self.model = convnext_tiny(weights=ConvNeXt_Tiny_Weights.IMAGENET1K_V1)

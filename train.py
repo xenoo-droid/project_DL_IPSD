@@ -12,8 +12,12 @@ Hasil:
     Results/<model>/fold{k}_curve.png
     Results/<model>/train_summary.csv
 
-Nama class di Models/: SimpleCNN (CNN.py), ModifiedCNN (ModifiedCNN.py),
-ConvNeXtTiny (ConvNeXt.py), semua pakai argumen num_classes.
+Syarat class model di Models/:
+  - nama file & class sesuai dict MODELS di bawah
+  - konstruktor nerima argumen num_classes
+  - (opsional) atribut class PREPROCESS = {"size": ..., "bgr": ..., "normalize": ...}
+    kalau nggak ada, pakai DEFAULT_PREPROCESS di Utils/getData.py
+Model baru cukup ditambah 1 baris di MODELS.
 """
 
 import argparse
@@ -30,7 +34,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 
-from Utils.getData import BASE_DIR, CLASSES, get_dataloaders
+from Utils.getData import BASE_DIR, CLASSES, DEFAULT_PREPROCESS, get_dataloaders
 
 MODELS = {
     "SimpleCNN":    ("Models.CNN", "SimpleCNN"),
@@ -38,10 +42,12 @@ MODELS = {
     "ConvNeXtTiny": ("Models.ConvNeXt", "ConvNeXtTiny"),
 }
 
-# default tiap model, bisa diganti lewat argumen
+# hyperparameter umum; model yang nggak ada di DEFAULTS pakai ini
+DEFAULT_CFG = {"epochs": 30, "lr": 1e-3, "optimizer": "adam", "weight_decay": 0.0}
+
+# setting khusus per model (cukup tulis yang beda dari DEFAULT_CFG),
+# semuanya masih bisa diganti lewat argumen
 DEFAULTS = {
-    "SimpleCNN":    {"epochs": 30, "lr": 1e-3, "optimizer": "adam",  "weight_decay": 0.0},
-    "ModifiedCNN":  {"epochs": 30, "lr": 1e-3, "optimizer": "adam",  "weight_decay": 0.0},
     "ConvNeXtTiny": {"epochs": 15, "lr": 1e-4, "optimizer": "adamw", "weight_decay": 0.05},
 }
 
@@ -53,10 +59,22 @@ def set_seed(seed):
     torch.cuda.manual_seed_all(seed)
 
 
-def get_model(name, num_classes=len(CLASSES)):
+def get_model_class(name):
     module_name, class_name = MODELS[name]
     module = importlib.import_module(module_name)
-    return getattr(module, class_name)(num_classes=num_classes)
+    return getattr(module, class_name)
+
+
+def get_model(name, num_classes=len(CLASSES)):
+    return get_model_class(name)(num_classes=num_classes)
+
+
+def get_preprocess(name, img_size=None):
+    # setting preprocessing: default <- atribut PREPROCESS di model <- --img_size
+    cfg = {**DEFAULT_PREPROCESS, **getattr(get_model_class(name), "PREPROCESS", {})}
+    if img_size is not None:
+        cfg["size"] = img_size
+    return cfg
 
 
 def make_optimizer(model, cfg):
@@ -117,7 +135,7 @@ def plot_history(hist, title, path):
 def train_fold(args, cfg, fold, device):
     set_seed(args.seed + fold)
     train_loader, valid_loader, _, _ = get_dataloaders(
-        fold, args.model, batch_size=args.batch_size,
+        fold, args.preprocess, batch_size=args.batch_size,
         num_workers=args.num_workers, root=args.root)
 
     model = get_model(args.model).to(device)
@@ -167,6 +185,8 @@ def main():
     p.add_argument("--folds", type=int, nargs="+", default=[1, 2, 3, 4, 5])
     p.add_argument("--epochs", type=int, default=None)
     p.add_argument("--lr", type=float, default=None)
+    p.add_argument("--img_size", type=int, default=None,
+                   help="timpa ukuran input dari PREPROCESS model")
     p.add_argument("--batch_size", type=int, default=32)
     p.add_argument("--num_workers", type=int, default=2)
     p.add_argument("--seed", type=int, default=42)
@@ -175,7 +195,8 @@ def main():
     p.add_argument("--results_dir", default="Results")
     args = p.parse_args()
 
-    cfg = dict(DEFAULTS[args.model])
+    cfg = {**DEFAULT_CFG, **DEFAULTS.get(args.model, {})}
+    args.preprocess = get_preprocess(args.model, args.img_size)
     if args.epochs is not None:
         cfg["epochs"] = args.epochs
     if args.lr is not None:
@@ -183,6 +204,7 @@ def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device} | model: {args.model} | folds: {args.folds} | config: {cfg}")
+    print(f"Preprocess: {args.preprocess}")
 
     summary = [train_fold(args, cfg, k, device) for k in args.folds]
 

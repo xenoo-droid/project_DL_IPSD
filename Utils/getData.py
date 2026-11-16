@@ -27,15 +27,12 @@ CLASSES = ["Chickenpox", "Cowpox", "HFMD", "Healthy", "Measles", "Monkeypox"]
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
 IMAGENET_STD = [0.229, 0.224, 0.225]
 
-# setting preprocessing tiap model
-PREPROCESS = {
-    # ikut M9: 100x100, skala 0-1, BGR kayak cv.imread (cek lagi sama Ferio)
-    "SimpleCNN":    {"size": 100, "bgr": True,  "normalize": False},
-    # masih nunggu keputusan Ferio
-    "ModifiedCNN":  {"size": 128, "bgr": False, "normalize": False},
-    # pretrained, jadi pakai normalisasi ImageNet
-    "ConvNeXtTiny": {"size": 224, "bgr": False, "normalize": True},
-}
+# setting preprocessing default. Tiap model bisa nimpa lewat atribut
+# class PREPROCESS di file modelnya sendiri, contoh:
+#     class SimpleCNN(nn.Module):
+#         PREPROCESS = {"size": 100, "bgr": True, "normalize": False}
+# key yang nggak ditulis di model otomatis pakai nilai default di bawah
+DEFAULT_PREPROCESS = {"size": 224, "bgr": False, "normalize": False}
 
 
 def get_split_dirs(fold, root=BASE_DIR):
@@ -71,8 +68,8 @@ def get_samples(fold, root=BASE_DIR):
 
 
 class MpoxDataset(Dataset):
-    def __init__(self, samples, model_name):
-        cfg = PREPROCESS[model_name]
+    def __init__(self, samples, preprocess=None):
+        cfg = {**DEFAULT_PREPROCESS, **(preprocess or {})}
         self.samples = samples
         self.bgr = cfg["bgr"]
 
@@ -94,16 +91,17 @@ class MpoxDataset(Dataset):
         return x, label
 
 
-def get_dataloaders(fold, model_name, batch_size=32, num_workers=2, root=BASE_DIR):
+def get_dataloaders(fold, preprocess=None, batch_size=32, num_workers=2, root=BASE_DIR):
     # balikin train_loader, valid_loader, test_loader, CLASSES
+    # preprocess = dict setting dari model (lihat DEFAULT_PREPROCESS)
     train, valid, test = get_samples(fold, root)
     pin = torch.cuda.is_available()
 
-    train_loader = DataLoader(MpoxDataset(train, model_name), batch_size=batch_size,
+    train_loader = DataLoader(MpoxDataset(train, preprocess), batch_size=batch_size,
                               shuffle=True, num_workers=num_workers, pin_memory=pin)
-    valid_loader = DataLoader(MpoxDataset(valid, model_name), batch_size=batch_size,
+    valid_loader = DataLoader(MpoxDataset(valid, preprocess), batch_size=batch_size,
                               shuffle=False, num_workers=num_workers, pin_memory=pin)
-    test_loader = DataLoader(MpoxDataset(test, model_name), batch_size=batch_size,
+    test_loader = DataLoader(MpoxDataset(test, preprocess), batch_size=batch_size,
                              shuffle=False, num_workers=num_workers, pin_memory=pin)
 
     print(f"[fold{fold}] train={len(train)} valid={len(valid)} test={len(test)}")

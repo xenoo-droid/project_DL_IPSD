@@ -27,7 +27,7 @@ from sklearn.metrics import (accuracy_score, auc, classification_report,
                              confusion_matrix, ConfusionMatrixDisplay,
                              precision_recall_fscore_support, roc_auc_score, roc_curve)
 
-from train import MODELS, get_model
+from train import MODELS, get_model, get_preprocess
 from Utils.getData import BASE_DIR, CLASSES, get_dataloaders
 
 
@@ -76,7 +76,7 @@ def plot_roc(y_true, y_prob, title, path):
 
 def evaluate_fold(args, fold, device, res_dir):
     _, _, test_loader, _ = get_dataloaders(
-        fold, args.model, batch_size=args.batch_size,
+        fold, args.preprocess, batch_size=args.batch_size,
         num_workers=args.num_workers, root=args.root)
 
     model = get_model(args.model).to(device)
@@ -123,12 +123,15 @@ def main():
     p = argparse.ArgumentParser(description="Evaluasi 5-fold MSLD v2.0")
     p.add_argument("--model", required=True, choices=MODELS.keys())
     p.add_argument("--folds", type=int, nargs="+", default=[1, 2, 3, 4, 5])
+    p.add_argument("--img_size", type=int, default=None,
+                   help="harus sama dengan --img_size waktu training")
     p.add_argument("--batch_size", type=int, default=32)
     p.add_argument("--num_workers", type=int, default=2)
     p.add_argument("--root", default=BASE_DIR)
     p.add_argument("--ckpt_dir", default="checkpoints")
     p.add_argument("--results_dir", default="Results")
     args = p.parse_args()
+    args.preprocess = get_preprocess(args.model, args.img_size)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     res_dir = os.path.join(args.results_dir, args.model)

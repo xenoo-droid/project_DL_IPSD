@@ -4,6 +4,7 @@
 # Dataset (lokal saja, dilarang di-upload)
 Dataset/*
 !Dataset/.gitkeep
+!Dataset/README.md
 
 # Model terlatih (dilarang di-upload)
 *.pt
