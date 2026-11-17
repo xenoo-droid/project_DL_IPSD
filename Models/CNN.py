@@ -22,11 +22,11 @@ class SimpleCNN(nn.Module):
         )
 
         self.fc = nn.Linear(in_features=50 * 9 * 9, out_features=num_classes)
-        self.logSoftmax = nn.LogSoftmax(dim=1)
+        self.Softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
         x = self.convBlock1(x)
         x = self.convBlock2(x)
         x = self.fc(torch.flatten(x, 1))
-        x = self.logSoftmax(x)
+        x = self.Softmax(x)
         return x
