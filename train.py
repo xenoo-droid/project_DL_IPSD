@@ -51,6 +51,17 @@ DEFAULTS = {
     "ConvNeXtTiny": {"epochs": 15, "lr": 1e-4, "optimizer": "adamw", "weight_decay": 0.05},
 }
 
+# model yang outputnya udah probabilitas (Softmax di dalam model, ikut M9)
+PROB_OUTPUT_MODELS = {"SimpleCNN"}
+
+
+class ProbNLLLoss(nn.Module):
+    # CrossEntropyLoss udah ada softmax di dalamnya, jadi kalau output model udah
+    # softmax, softmax-nya kepakai dua kali dan gradiennya bisa mati (model macet).
+    # Di sini cukup log(p) lalu NLL -> softmax cuma sekali, hasilnya setara CE biasa.
+    def forward(self, prob, target):
+        return nn.functional.nll_loss(torch.log(prob.clamp_min(1e-30)), target)
+
 
 def set_seed(seed):
     random.seed(seed)
@@ -139,7 +150,7 @@ def train_fold(args, cfg, fold, device):
         num_workers=args.num_workers, root=args.root)
 
     model = get_model(args.model).to(device)
-    criterion = nn.CrossEntropyLoss()
+    criterion = ProbNLLLoss() if args.model in PROB_OUTPUT_MODELS else nn.CrossEntropyLoss()
     optimizer = make_optimizer(model, cfg)
 
     ckpt_dir = os.path.join(args.ckpt_dir, args.model)
