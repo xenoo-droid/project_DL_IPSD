@@ -3,6 +3,9 @@ import torch.nn as nn
 
 
 class ModifiedCNN(nn.Module):
+    # dibaca train.py/test.py buat getData; input 224x224 RGB, piksel 0-1, tanpa normalisasi ImageNet
+    PREPROCESS = {"size": 224, "bgr": False, "normalize": False}
+
     def __init__(self, input_dim=200, input_c=3, num_classes=6, hidden_dim=256, dropout=0.35, device='cpu'):
         super().__init__()
 
